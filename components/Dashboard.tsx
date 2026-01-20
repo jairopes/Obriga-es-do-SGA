@@ -1,5 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   BarChart, 
   Bar, 
@@ -12,7 +13,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { AlertCircle, CheckCircle, Clock, ShieldAlert, Trash2, Pencil, Calendar, User } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, ShieldAlert, Trash2, Pencil, Calendar, User, Copy } from 'lucide-react';
 import { Obligation, Status } from '../types';
 import { STATUS_COLORS } from '../constants';
 import EditObligationModal from './EditObligationModal';
@@ -26,6 +27,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ obligations, onDelete, onUpdate, orgaos, responsaveis }) => {
+  const navigate = useNavigate();
   const [editingItem, setEditingItem] = useState<Obligation | null>(null);
 
   const stats = useMemo(() => {
@@ -164,6 +166,14 @@ const Dashboard: React.FC<DashboardProps> = ({ obligations, onDelete, onUpdate, 
               </div>
               
               <div className="flex gap-2 relative z-10">
+                <button 
+                  type="button"
+                  onClick={() => navigate('/cadastro', { state: { duplicateData: o } })}
+                  className="p-3 bg-blue-50 text-blue-600 rounded-lg hover:bg-black hover:text-[#FFA200] transition-all flex items-center justify-center group/dup"
+                  title="Duplicar"
+                >
+                  <Copy size={18} className="group-hover/dup:scale-110 transition-transform" />
+                </button>
                 <button 
                   type="button"
                   onClick={() => setEditingItem(o)}

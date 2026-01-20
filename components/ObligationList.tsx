@@ -1,18 +1,16 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
   Trash2, 
-  Calendar, 
-  Building2, 
   AlertCircle,
-  CheckCircle2,
-  User,
   Download,
   X,
   FileSpreadsheet,
   FilePieChart,
-  Pencil
+  Pencil,
+  Copy
 } from 'lucide-react';
 import { Obligation, Status, Empresa } from '../types';
 import { STATUS_COLORS } from '../constants';
@@ -30,6 +28,7 @@ interface ObligationListProps {
 }
 
 const ObligationList: React.FC<ObligationListProps> = ({ obligations, onDelete, onUpdate, orgaos, responsaveis }) => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEmpresa, setFilterEmpresa] = useState<Empresa | 'TODAS'>('TODAS');
   const [filterStatus, setFilterStatus] = useState<Status | 'TODOS'>('TODOS');
@@ -121,11 +120,11 @@ const ObligationList: React.FC<ObligationListProps> = ({ obligations, onDelete, 
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white/20 p-4 rounded-2xl backdrop-blur-sm no-print">
         <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-black/60 w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#FFA200] w-5 h-5 z-10" />
           <input 
             type="text"
             placeholder="Buscar por documento, órgão, responsável..."
-            className="w-full pl-10 pr-4 py-3 bg-white/80 rounded-xl outline-none focus:ring-2 ring-black transition-all"
+            className="w-full pl-10 pr-4 py-3 bg-black text-white rounded-xl outline-none focus:ring-2 ring-white/30 transition-all font-medium placeholder-gray-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -194,41 +193,26 @@ const ObligationList: React.FC<ObligationListProps> = ({ obligations, onDelete, 
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="bg-gray-100 p-2 rounded-lg"><Building2 size={16} /></div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Órgão / Empresa</p>
-                        <p className="font-bold text-black truncate">{o.orgao} / {o.empresa}</p>
-                      </div>
+                    <div className="flex flex-col text-sm">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">Órgão / Empresa</p>
+                      <p className="font-bold text-black truncate">{o.orgao} / {o.empresa}</p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="bg-gray-100 p-2 rounded-lg"><Calendar size={16} /></div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Providências</p>
-                        <p className="font-bold text-black">{formatDate(o.dataInicio)} - {formatDate(o.dataFinal)}</p>
-                      </div>
+                    <div className="flex flex-col text-sm">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">Providências</p>
+                      <p className="font-bold text-black">{formatDate(o.dataInicio)} - {formatDate(o.dataFinal)}</p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="bg-gray-100 p-2 rounded-lg"><User size={16} /></div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Responsável</p>
-                        <p className="font-bold text-black truncate">{o.responsavel || 'Não definido'}</p>
-                      </div>
+                    <div className="flex flex-col text-sm">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">Responsável</p>
+                      <p className="font-bold text-black truncate">{o.responsavel || 'Não definido'}</p>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="bg-gray-100 p-2 rounded-lg"><AlertCircle size={16} /></div>
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Validade</p>
-                        <p className="font-bold text-black">{formatDate(o.validadeDocumento)}</p>
-                      </div>
+                    <div className="flex flex-col text-sm">
+                      <p className="text-[10px] font-bold text-gray-400 uppercase">Validade</p>
+                      <p className="font-bold text-black">{formatDate(o.validadeDocumento)}</p>
                     </div>
                     {o.dataConclusao && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <div className="bg-green-50 p-2 rounded-lg text-green-600"><CheckCircle2 size={16} /></div>
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase">Concluído em</p>
-                          <p className="font-bold text-black">{formatDate(o.dataConclusao)}</p>
-                        </div>
+                      <div className="flex flex-col text-sm">
+                        <p className="text-[10px] font-bold text-green-600 uppercase">Concluído em</p>
+                        <p className="font-bold text-black">{formatDate(o.dataConclusao)}</p>
                       </div>
                     )}
                   </div>
@@ -254,6 +238,14 @@ const ObligationList: React.FC<ObligationListProps> = ({ obligations, onDelete, 
                   </select>
                   
                   <div className="flex gap-2 w-full lg:w-auto">
+                    <button 
+                      type="button"
+                      onClick={() => navigate('/cadastro', { state: { duplicateData: o } })}
+                      className="flex-1 lg:flex-none p-4 bg-blue-50 text-blue-600 rounded-xl hover:bg-black hover:text-[#FFA200] transition-all flex items-center justify-center shadow-sm group/dup"
+                      title="Duplicar Obrigação"
+                    >
+                      <Copy size={18} className="group-hover/dup:scale-110 transition-transform" />
+                    </button>
                     <button 
                       type="button"
                       onClick={() => setEditingItem(o)}

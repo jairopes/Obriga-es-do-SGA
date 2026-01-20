@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Save } from 'lucide-react';
 import { Obligation, Status, Empresa } from '../types';
 import { INITIAL_PERIODICITIES } from '../constants';
@@ -13,22 +13,26 @@ interface ObligationFormProps {
 
 const ObligationForm: React.FC<ObligationFormProps> = ({ onSave, orgaos, responsaveis }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   
+  // Verifica se há dados para duplicação vindos do estado da rota
+  const duplicateData = location.state?.duplicateData as Obligation | undefined;
+
   const [formData, setFormData] = useState({
-    periodicidade: INITIAL_PERIODICITIES[0],
-    dataInicio: '',
-    dataFinal: '',
-    orgao: orgaos[0] || '',
-    tipo: '',
-    numeroDocumento: '',
-    validadeDocumento: '',
-    nomeDocumento: '',
-    empresa: Empresa.CAMPLUVAS,
-    acao: '',
-    status: Status.PENDENTE,
-    dataConclusao: '',
-    responsavel: responsaveis[0] || '',
-    observacoes: ''
+    periodicidade: duplicateData?.periodicidade || INITIAL_PERIODICITIES[0],
+    dataInicio: duplicateData?.dataInicio || '',
+    dataFinal: duplicateData?.dataFinal || '',
+    orgao: duplicateData?.orgao || orgaos[0] || '',
+    tipo: duplicateData?.tipo || '',
+    numeroDocumento: duplicateData?.numeroDocumento || '',
+    validadeDocumento: duplicateData?.validadeDocumento || '',
+    nomeDocumento: duplicateData?.nomeDocumento || '',
+    empresa: duplicateData?.empresa || Empresa.CAMPLUVAS,
+    acao: duplicateData?.acao || '',
+    status: duplicateData ? Status.PENDENTE : Status.PENDENTE, // Sempre inicia pendente ao duplicar
+    dataConclusao: '', // Limpa data de conclusão ao duplicar
+    responsavel: duplicateData?.responsavel || responsaveis[0] || '',
+    observacoes: duplicateData?.observacoes || ''
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -57,7 +61,12 @@ const ObligationForm: React.FC<ObligationFormProps> = ({ onSave, orgaos, respons
   return (
     <div className="bg-white/40 backdrop-blur-md rounded-3xl p-6 md:p-10 shadow-xl border border-white/50 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between mb-8">
-        <h2 className="text-3xl font-black italic text-black uppercase tracking-tighter">CADASTRO DE OBRIGAÇÕES</h2>
+        <h2 className="text-3xl font-black italic text-black uppercase tracking-tighter">
+          {duplicateData ? 'DUPLICAR OBRIGAÇÃO' : 'CADASTRO DE OBRIGAÇÕES'}
+        </h2>
+        {duplicateData && (
+          <span className="bg-black text-[#FFA200] px-3 py-1 rounded-full text-[10px] font-black italic">MODO DUPLICAÇÃO</span>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -174,7 +183,7 @@ const ObligationForm: React.FC<ObligationFormProps> = ({ onSave, orgaos, respons
           <button type="button" onClick={() => navigate('/listagem')} className="px-6 py-3 font-bold text-black border-2 border-black rounded-xl">Cancelar</button>
           <button type="submit" className="px-10 py-3 bg-black text-[#FFA200] font-black italic rounded-xl hover:shadow-xl transition-all flex items-center gap-2">
             <Save size={20} />
-            SALVAR OBRIGAÇÃO
+            {duplicateData ? 'CRIAR CÓPIA' : 'SALVAR OBRIGAÇÃO'}
           </button>
         </div>
       </form>
