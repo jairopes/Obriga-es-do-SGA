@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, 
@@ -36,15 +36,43 @@ const ObligationList: React.FC<ObligationListProps> = ({ obligations, onDelete, 
   const [exportRange, setExportRange] = useState({ start: '', end: '' });
   const [editingItem, setEditingItem] = useState<Obligation | null>(null);
 
-  const filtered = obligations.filter(o => {
-    const matchesSearch = o.nomeDocumento.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          o.orgao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          o.numeroDocumento.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          (o.responsavel && o.responsavel.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesEmpresa = filterEmpresa === 'TODAS' || o.empresa === filterEmpresa;
-    const matchesStatus = filterStatus === 'TODOS' || o.status === filterStatus;
-    return matchesSearch && matchesEmpresa && matchesStatus;
-  });
+  // Lógica de filtragem e ordenação combinada
+  const displayList = useMemo(() => {
+    // 1. Filtragem inicial
+    const filtered = obligations.filter(o => {
+      const matchesSearch = o.nomeDocumento.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                            o.orgao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            o.numeroDocumento.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (o.responsavel && o.responsavel.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesEmpresa = filterEmpresa === 'TODAS' || o.empresa === filterEmpresa;
+      const matchesStatus = filterStatus === 'TODOS' || o.status === filterStatus;
+      return matchesSearch && matchesEmpresa && matchesStatus;
+    });
+
+    // 2. Ordenação Personalizada
+    const statusWeight: Record<Status, number> = {
+      [Status.PENDENTE]: 1,
+      [Status.EM_ANDAMENTO]: 2,
+      [Status.CONCLUIDO]: 3,
+      [Status.VIGENTE]: 4,
+    };
+
+    return [...filtered].sort((a, b) => {
+      // Nível 1: Peso do Status
+      const weightA = statusWeight[a.status] || 99;
+      const weightB = statusWeight[b.status] || 99;
+
+      if (weightA !== weightB) {
+        return weightA - weightB;
+      }
+
+      // Nível 2: Data de Início crescente (dentro do mesmo status)
+      const dateA = a.dataInicio ? new Date(a.dataInicio).getTime() : Infinity;
+      const dateB = b.dataInicio ? new Date(b.dataInicio).getTime() : Infinity;
+      
+      return dateA - dateB;
+    });
+  }, [obligations, searchTerm, filterEmpresa, filterStatus]);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'N/A';
@@ -164,13 +192,13 @@ const ObligationList: React.FC<ObligationListProps> = ({ obligations, onDelete, 
       </div>
 
       <div className="grid gap-4">
-        {filtered.length === 0 ? (
+        {displayList.length === 0 ? (
           <div className="bg-white/40 p-12 rounded-3xl text-center border-2 border-dashed border-black/10">
             <AlertCircle className="w-12 h-12 text-black/40 mx-auto mb-4" />
             <p className="text-xl font-bold text-black/60 italic">Nenhuma obrigação encontrada</p>
           </div>
         ) : (
-          filtered.map(o => (
+          displayList.map(o => (
             <div 
               key={o.id} 
               className="bg-white rounded-3xl p-6 shadow-sm border border-transparent hover:border-black/10 transition-all group overflow-hidden relative"
