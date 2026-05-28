@@ -59,7 +59,8 @@ const Dashboard: React.FC<DashboardProps> = ({ obligations, onDelete, onUpdate, 
   }, [obligations]);
 
   const recentObligations = useMemo(() => {
-    return [...obligations]
+    return obligations
+      .filter(o => o.status !== Status.CONCLUIDO)
       .sort((a, b) => new Date(a.dataFinal).getTime() - new Date(b.dataFinal).getTime())
       .slice(0, 3);
   }, [obligations]);
@@ -209,7 +210,7 @@ const Dashboard: React.FC<DashboardProps> = ({ obligations, onDelete, onUpdate, 
               </div>
             </div>
           ))}
-          {obligations.length === 0 && (
+          {recentObligations.length === 0 && (
             <p className="text-center py-4 text-gray-500 font-bold uppercase text-xs">Nenhuma obrigação pendente</p>
           )}
         </div>
