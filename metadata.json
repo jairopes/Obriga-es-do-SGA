@@ -1,5 +1,6 @@
 {
   "name": "EcoGuard - Gestão Ambiental",
   "description": "Sistema de controle de obrigações ambientais com rastreamento de prazos, órgãos reguladores e status de conformidade para múltiplos empreendimentos.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }

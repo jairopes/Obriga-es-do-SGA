@@ -76,6 +76,13 @@ const ObligationList: React.FC<ObligationListProps> = ({ obligations, onDelete, 
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return 'N/A';
+    const cleanDate = dateStr.split('T')[0];
+    if (cleanDate.includes('-')) {
+      const parts = cleanDate.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
     return new Date(dateStr).toLocaleDateString('pt-BR');
   };
 

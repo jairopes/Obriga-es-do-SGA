@@ -26,6 +26,18 @@ interface DashboardProps {
   responsaveis: string[];
 }
 
+const formatDate = (dateStr: string) => {
+  if (!dateStr) return 'N/A';
+  const cleanDate = dateStr.split('T')[0];
+  if (cleanDate.includes('-')) {
+    const parts = cleanDate.split('-');
+    if (parts.length === 3 && parts[0].length === 4) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  }
+  return new Date(dateStr).toLocaleDateString('pt-BR');
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ obligations, onDelete, onUpdate, orgaos, responsaveis }) => {
   const navigate = useNavigate();
   const [editingItem, setEditingItem] = useState<Obligation | null>(null);
@@ -156,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = ({ obligations, onDelete, onUpdate, 
                   <h4 className="font-black text-black uppercase text-sm italic">{o.nomeDocumento}</h4>
                   <div className="flex gap-3 mt-1">
                     <span className="text-[10px] flex items-center gap-1 text-gray-500 font-bold">
-                      <Calendar size={12} /> {new Date(o.dataFinal).toLocaleDateString('pt-BR')}
+                      <Calendar size={12} /> {formatDate(o.dataFinal)}
                     </span>
                     <span className="text-[10px] flex items-center gap-1 text-gray-500 font-bold">
                       <User size={12} /> {o.responsavel}
