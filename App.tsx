@@ -20,6 +20,29 @@ import ResponsavelManager from './components/ResponsavelManager';
 import { Obligation, Empresa, Status } from './types';
 import { supabase } from './supabase';
 
+const adjustObligationStatus = (ob: Obligation): Obligation => {
+  if (ob.validadeDocumento) {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+
+    if (ob.status === Status.VIGENTE && ob.validadeDocumento <= todayStr) {
+      return {
+        ...ob,
+        status: Status.PENDENTE
+      };
+    } else if (ob.status === Status.PENDENTE && ob.validadeDocumento > todayStr) {
+      return {
+        ...ob,
+        status: Status.VIGENTE
+      };
+    }
+  }
+  return ob;
+};
+
 const App: React.FC = () => {
   const [obligations, setObligations] = useState<Obligation[]>([]);
   const [orgaos, setOrgaos] = useState<string[]>([]);
@@ -28,24 +51,27 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Auxiliar para converter dados do Banco (snake_case) para o App (camelCase)
-  const mapFromDB = (data: any): Obligation => ({
-    id: data.id,
-    periodicidade: data.periodicidade || '',
-    dataInicio: data.data_inicio || '',
-    dataFinal: data.data_final || '',
-    orgao: data.orgao || '',
-    tipo: data.tipo || '',
-    numeroDocumento: data.numero_documento || '',
-    validadeDocumento: data.validade_documento || '',
-    nomeDocumento: data.nome_documento || '',
-    empresa: (data.empresa as Empresa) || Empresa.CAMPLUVAS,
-    acao: data.acao || '',
-    status: (data.status as Status) || Status.PENDENTE,
-    dataConclusao: data.data_conclusao || '',
-    responsavel: data.responsavel || '',
-    observacoes: data.observacoes || '',
-    createdAt: data.created_at || Date.now()
-  });
+  const mapFromDB = (data: any): Obligation => {
+    const ob: Obligation = {
+      id: data.id,
+      periodicidade: data.periodicidade || '',
+      dataInicio: data.data_inicio || '',
+      dataFinal: data.data_final || '',
+      orgao: data.orgao || '',
+      tipo: data.tipo || '',
+      numeroDocumento: data.numero_documento || '',
+      validadeDocumento: data.validade_documento || '',
+      nomeDocumento: data.nome_documento || '',
+      empresa: (data.empresa as Empresa) || Empresa.CAMPLUVAS,
+      acao: data.acao || '',
+      status: (data.status as Status) || Status.PENDENTE,
+      dataConclusao: data.data_conclusao || '',
+      responsavel: data.responsavel || '',
+      observacoes: data.observacoes || '',
+      createdAt: data.created_at || Date.now()
+    };
+    return adjustObligationStatus(ob);
+  };
 
   // Auxiliar para converter dados do App (camelCase) para o Banco (snake_case)
   const mapToDB = (ob: Partial<Obligation>) => {
@@ -98,14 +124,15 @@ const App: React.FC = () => {
   }, []);
 
   const addObligation = async (newObligation: Obligation) => {
-    const dbData = mapToDB(newObligation);
+    const adjusted = adjustObligationStatus(newObligation);
+    const dbData = mapToDB(adjusted);
     const { error } = await supabase.from('obligations').insert([dbData]);
     if (error) {
       console.error("Erro detalhado do Supabase:", error);
       alert(`Erro ao salvar: ${error.message} \n\nDica: Verifique se todos os campos obrigatórios estão preenchidos corretamente.`);
       return;
     }
-    setObligations(prev => [newObligation, ...prev]);
+    setObligations(prev => [adjusted, ...prev]);
   };
 
   const deleteObligation = async (id: string) => {
@@ -118,13 +145,19 @@ const App: React.FC = () => {
   };
 
   const updateObligation = async (id: string, updated: Partial<Obligation>) => {
-    const dbData = mapToDB(updated);
+    const original = obligations.find(o => o.id === id);
+    if (!original) return;
+    
+    const fullUpdated = { ...original, ...updated };
+    const adjusted = adjustObligationStatus(fullUpdated);
+    const dbData = mapToDB(adjusted);
+    
     const { error } = await supabase.from('obligations').update(dbData).eq('id', id);
     if (error) {
       alert("Erro ao atualizar: " + error.message);
       return;
     }
-    setObligations(prev => prev.map(o => o.id === id ? { ...o, ...updated } : o));
+    setObligations(prev => prev.map(o => o.id === id ? adjusted : o));
   };
 
   const handleSetOrgaos = async (newList: string[]) => {
