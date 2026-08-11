@@ -21,19 +21,20 @@ import { Obligation, Empresa, Status } from './types';
 import { supabase } from './supabase';
 
 const adjustObligationStatus = (ob: Obligation): Obligation => {
-  if (ob.validadeDocumento) {
+  const refDate = ob.dataInicio || ob.validadeDocumento;
+  if (refDate) {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     const todayStr = `${year}-${month}-${day}`;
 
-    if (ob.status === Status.VIGENTE && ob.validadeDocumento <= todayStr) {
+    if (ob.status === Status.VIGENTE && refDate <= todayStr) {
       return {
         ...ob,
         status: Status.PENDENTE
       };
-    } else if (ob.status === Status.PENDENTE && ob.validadeDocumento > todayStr) {
+    } else if (ob.status === Status.PENDENTE && refDate > todayStr) {
       return {
         ...ob,
         status: Status.VIGENTE
