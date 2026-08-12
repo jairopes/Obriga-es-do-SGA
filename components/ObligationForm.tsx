@@ -1,15 +1,59 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Save } from 'lucide-react';
+import { Save, Repeat } from 'lucide-react';
 import { Obligation, Status, Empresa } from '../types';
 import { INITIAL_PERIODICITIES } from '../constants';
 
 interface ObligationFormProps {
-  onSave: (obligation: Obligation) => void;
+  onSave: (obligation: Obligation | Obligation[]) => void;
   orgaos: string[];
   responsaveis: string[];
 }
+
+const addPeriod = (dateStr: string, periodicidade: string, count: number): string => {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return dateStr;
+
+  const pUpper = periodicidade.toUpperCase();
+  let monthOffset = 1;
+  if (pUpper.includes('BIMESTRAL')) {
+    monthOffset = 2;
+  } else if (pUpper.includes('TRIMESTRAL')) {
+    monthOffset = 3;
+  } else if (pUpper.includes('QUADRIMESTRAL')) {
+    monthOffset = 4;
+  } else if (pUpper.includes('SEMESTRAL')) {
+    monthOffset = 6;
+  } else if (pUpper.includes('ANUAL') && !pUpper.includes('BIENAL')) {
+    monthOffset = 12;
+  } else if (pUpper.includes('BIENAL')) {
+    monthOffset = 24;
+  } else {
+    monthOffset = 1;
+  }
+
+  const totalMonthsAdded = monthOffset * count;
+  if (totalMonthsAdded === 0) return dateStr;
+
+  const targetTotalMonths = (year * 12 + (month - 1)) + totalMonthsAdded;
+  const targetYear = Math.floor(targetTotalMonths / 12);
+  const targetMonth = targetTotalMonths % 12;
+
+  const maxDaysInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+  const targetDay = Math.min(day, maxDaysInTargetMonth);
+
+  const yStr = String(targetYear).padStart(4, '0');
+  const mStr = String(targetMonth + 1).padStart(2, '0');
+  const dStr = String(targetDay).padStart(2, '0');
+
+  return `${yStr}-${mStr}-${dStr}`;
+};
 
 const ObligationForm: React.FC<ObligationFormProps> = ({ onSave, orgaos, responsaveis }) => {
   const navigate = useNavigate();
@@ -35,6 +79,9 @@ const ObligationForm: React.FC<ObligationFormProps> = ({ onSave, orgaos, respons
     observacoes: duplicateData?.observacoes || ''
   });
 
+  const [isBatchRecurrent, setIsBatchRecurrent] = useState(false);
+  const [batchUntilDate, setBatchUntilDate] = useState('');
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -46,12 +93,66 @@ const ObligationForm: React.FC<ObligationFormProps> = ({ onSave, orgaos, respons
       alert('Por favor, cadastre ao menos um Órgão e um Responsável antes de continuar.');
       return;
     }
-    const newObligation: Obligation = {
-      ...formData,
-      id: crypto.randomUUID(),
-      createdAt: Date.now()
-    };
-    onSave(newObligation);
+
+    if (isBatchRecurrent) {
+      if (!batchUntilDate) {
+        alert('Por favor, informe a "Data limite" para a geração das obrigações em lote.');
+        return;
+      }
+      if (formData.periodicidade === 'Única') {
+        alert('A opção de geração em lote não se aplica à periodicidade "Única". Selecione Mensal, Trimestral, Semestral, Anual ou Bienal.');
+        return;
+      }
+
+      const generatedList: Obligation[] = [];
+      let count = 0;
+      const maxIterations = 120; // limite de segurança (10 anos mensais)
+
+      while (count < maxIterations) {
+        const nextInicio = addPeriod(formData.dataInicio, formData.periodicidade, count);
+        const nextFinal = addPeriod(formData.dataFinal, formData.periodicidade, count);
+        const nextValidade = addPeriod(formData.validadeDocumento, formData.periodicidade, count);
+
+        // Data de referência para checar o limite
+        const refDate = nextInicio || nextValidade;
+
+        // Se a data de referência ultrapassar a data limite escolhida, interrompe
+        if (count > 0 && refDate > batchUntilDate) {
+          break;
+        }
+
+        generatedList.push({
+          ...formData,
+          dataInicio: nextInicio,
+          dataFinal: nextFinal,
+          validadeDocumento: nextValidade,
+          id: crypto.randomUUID(),
+          createdAt: Date.now() + count
+        });
+
+        if (refDate >= batchUntilDate) {
+          break;
+        }
+
+        count++;
+      }
+
+      if (generatedList.length === 0) {
+        alert('Nenhuma obrigação foi gerada. Verifique as datas fornecidas.');
+        return;
+      }
+
+      onSave(generatedList);
+      alert(`Sucesso! Foram geradas ${generatedList.length} obrigações recorrentes.`);
+    } else {
+      const newObligation: Obligation = {
+        ...formData,
+        id: crypto.randomUUID(),
+        createdAt: Date.now()
+      };
+      onSave(newObligation);
+    }
+
     navigate('/listagem');
   };
 
@@ -169,6 +270,49 @@ const ObligationForm: React.FC<ObligationFormProps> = ({ onSave, orgaos, respons
           </div>
         </div>
 
+        {/* Bloco de Geração Recorrente em Lote */}
+        <div className="bg-black/5 border border-black/10 rounded-2xl p-4 md:p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={isBatchRecurrent} 
+                onChange={(e) => setIsBatchRecurrent(e.target.checked)}
+                className="w-5 h-5 accent-black rounded cursor-pointer"
+              />
+              <div>
+                <span className="font-black text-sm uppercase text-black flex items-center gap-2">
+                  <Repeat size={16} className="text-[#FFA200]" />
+                  Gerar ocorrências recorrentes em lote?
+                </span>
+                <p className="text-xs text-gray-600 font-medium">
+                  Cria automaticamente múltiplos registros periódicos ({formData.periodicidade}) até a data limite informada.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          {isBatchRecurrent && (
+            <div className="pt-2 border-t border-black/10 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div>
+                <label className={labelClass}>Gerar até a data limite (Final da Recorrência)</label>
+                <input 
+                  type="date" 
+                  value={batchUntilDate} 
+                  onChange={(e) => setBatchUntilDate(e.target.value)} 
+                  className={inputClass} 
+                  required={isBatchRecurrent} 
+                />
+              </div>
+              <div className="flex items-end">
+                <p className="text-xs text-gray-700 bg-white/70 p-3 rounded-lg border border-black/10 italic">
+                  💡 Com a periodicidade <strong>{formData.periodicidade}</strong>, o sistema gerará individualmente cada ocorrência até a data limite selecionada.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
         <div>
           <label className={labelClass}>Observações</label>
           <textarea 
@@ -183,7 +327,7 @@ const ObligationForm: React.FC<ObligationFormProps> = ({ onSave, orgaos, respons
           <button type="button" onClick={() => navigate('/listagem')} className="px-6 py-3 font-bold text-black border-2 border-black rounded-xl">Cancelar</button>
           <button type="submit" className="px-10 py-3 bg-black text-[#FFA200] font-black italic rounded-xl hover:shadow-xl transition-all flex items-center gap-2">
             <Save size={20} />
-            {duplicateData ? 'CRIAR CÓPIA' : 'SALVAR OBRIGAÇÃO'}
+            {isBatchRecurrent ? 'GERAR LOTE DE OBRIGAÇÕES' : duplicateData ? 'CRIAR CÓPIA' : 'SALVAR OBRIGAÇÃO'}
           </button>
         </div>
       </form>

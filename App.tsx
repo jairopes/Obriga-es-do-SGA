@@ -124,16 +124,18 @@ const App: React.FC = () => {
     fetchData();
   }, []);
 
-  const addObligation = async (newObligation: Obligation) => {
-    const adjusted = adjustObligationStatus(newObligation);
-    const dbData = mapToDB(adjusted);
-    const { error } = await supabase.from('obligations').insert([dbData]);
+  const addObligation = async (newObligation: Obligation | Obligation[]) => {
+    const list = Array.isArray(newObligation) ? newObligation : [newObligation];
+    const adjustedList = list.map(adjustObligationStatus);
+    const dbDataList = adjustedList.map(mapToDB);
+
+    const { error } = await supabase.from('obligations').insert(dbDataList);
     if (error) {
       console.error("Erro detalhado do Supabase:", error);
       alert(`Erro ao salvar: ${error.message} \n\nDica: Verifique se todos os campos obrigatórios estão preenchidos corretamente.`);
       return;
     }
-    setObligations(prev => [adjusted, ...prev]);
+    setObligations(prev => [...adjustedList, ...prev]);
   };
 
   const deleteObligation = async (id: string) => {
